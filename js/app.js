@@ -9,6 +9,48 @@
   const GOOGLE_FORM_URL =
     "https://docs.google.com/spreadsheets/d/1ouCVXknU6RYgA1bhcB0g3cPV3yr0a210C4q7IWd1DOc/edit?gid=1593055287#gid=1593055287";
 
+  window.KakoHub = window.KakoHub || {};
+
+  /* Analytics — GA4 + buy_kakobuy click events */
+  if (!document.querySelector('script[src*="js/analytics.js"]')) {
+    const analytics = document.createElement("script");
+    analytics.src = "js/analytics.js";
+    analytics.async = true;
+    document.head.appendChild(analytics);
+  }
+
+  function track(name, params) {
+    try {
+      if (typeof gtag !== "function") return;
+      gtag("event", name, Object.assign({ transport_type: "beacon" }, params || {}));
+    } catch (_) {}
+  }
+  KakoHub.track = track;
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      const a = e.target.closest("a[href*='kakobuy.com']");
+      if (!a) return;
+      const params = {
+        link_url: a.href,
+        page_path: location.pathname + location.search,
+        event_source: a.classList.contains("item-buy")
+          ? "item_buy"
+          : a.dataset.track || "kakobuy_link",
+      };
+      if (a.dataset.itemId) params.item_id = a.dataset.itemId;
+      if (a.dataset.itemName) params.item_name = a.dataset.itemName;
+      if (a.dataset.itemCategory) params.item_category = a.dataset.itemCategory;
+      if (a.dataset.itemPrice) {
+        params.value = Number(a.dataset.itemPrice) || 0;
+        params.currency = "USD";
+      }
+      track("buy_kakobuy", params);
+    },
+    true
+  );
+
   /* Replace placeholder affiliate links site-wide */
   $$("a[href*='affcode=YOURCODE']").forEach((a) => {
     a.href = a.href.replace("affcode=YOURCODE", `affcode=${AFF}`);
@@ -433,7 +475,38 @@
     });
   }
 
-  /* QC finder demo */
+  /* QC finder — green-mat warehouse examples */
+  const QC_GREEN = (window.KakoHub && KakoHub.qcGreen) || { count: 0, images: [] };
+  const QC_LABELS = ["Front", "Sole / tag", "Close-up", "Box", "Side", "Label", "Pair", "Pack"];
+
+  function qcTileHtml(img, i, opts) {
+    const label = (opts && opts.label) || QC_LABELS[i % QC_LABELS.length] || `QC ${i + 1}`;
+    const href = img.id ? `item.html?id=${encodeURIComponent(img.id)}` : "spreadsheet.html";
+    return `<a class="qc-tile" href="${escapeHtml(href)}">
+      <img src="${escapeHtml(img.src)}" alt="Warehouse QC photo" loading="lazy" decoding="async" width="400" height="400" />
+      <span class="qc-tile-label">${escapeHtml(label)}</span>
+    </a>`;
+  }
+
+  function renderQcGrid(el, images, limit) {
+    if (!el) return;
+    const list = limit ? images.slice(0, limit) : images;
+    if (!list.length) {
+      el.innerHTML = `<div class="qc-tile qc-tile-empty"><span class="qc-tile-label">No QC photos yet</span></div>`;
+      return;
+    }
+    el.innerHTML = list.map((img, i) => qcTileHtml(img, i)).join("");
+  }
+
+  function initQcGreenGallery() {
+    const all = QC_GREEN.images || [];
+    const countEl = $("#qc-green-count");
+    if (countEl) countEl.textContent = String(QC_GREEN.count || all.length);
+    renderQcGrid($("#qc-demo-grid"), all, 8);
+    renderQcGrid($("#qc-green-grid"), all);
+  }
+  initQcGreenGallery();
+
   const qcBtn = $("#qc-btn");
   if (qcBtn) {
     qcBtn.addEventListener("click", () => {
@@ -443,16 +516,47 @@
       const raw = (input?.value || "").trim();
       if (!raw) {
         out.classList.remove("show");
-        if (grid) grid.style.opacity = "0.45";
+        renderQcGrid(grid, QC_GREEN.images || [], 8);
         return;
       }
       const parsed = parseLink(raw);
       const label = parsed.ok
         ? `${parsed.from}${parsed.id ? " · ID " + parsed.id : ""}`
         : "link";
-      out.innerHTML = `Detected <strong>${escapeHtml(label)}</strong>. QC photo lookup is not wired yet — converter can still build a Kakobuy link: <a href="${escapeHtml(parsed.kakobuyUrl || SIGNUP)}" target="_blank" rel="noopener sponsored">Open item</a>`;
+      const id = parsed.ok && parsed.id ? String(parsed.id) : "";
+      const matched = id
+        ? (QC_GREEN.images || []).filter((img) => String(img.id) === id)
+        : [];
+      const product = id ? ALL_PRODUCTS.find((p) => String(p.id) === id) : null;
+      const extras = [];
+      if (product) {
+        const pid = String(product.id);
+        [product.image, `img/products/${pid}-2.webp`, `img/products/${pid}-3.webp`]
+          .filter(Boolean)
+          .forEach((src) => {
+            if (!extras.some((e) => e.src === src)) extras.push({ src, id: pid });
+          });
+      }
+      const show = matched.length ? matched : extras.length ? extras : (QC_GREEN.images || []).slice(0, 8);
+      renderQcGrid(grid, show);
+      const buy = parsed.kakobuyUrl || (product ? kakobuyHref(product) : SIGNUP);
+      const itemLink = product ? productHref(product) : "";
+      out.innerHTML = `Detected <strong>${escapeHtml(label)}</strong>.
+        ${matched.length ? ` Found <strong>${matched.length}</strong> green-mat QC shot${matched.length > 1 ? "s" : ""} in the library.` : extras.length ? ` Showing available angles for this find.` : ` No exact green-mat match yet — showing warehouse examples.`}
+        <div class="convert-actions" style="margin-top:10px">
+          <a class="btn btn-red" href="${escapeHtml(buy)}" target="_blank" rel="noopener sponsored"
+            data-item-id="${escapeHtml(id)}"
+            data-item-name="${escapeHtml(product?.title || "")}"
+            data-item-category="${escapeHtml(product?.category || "")}"
+            data-item-price="${escapeHtml(String(product?.price || 0))}">Buy on Kakobuy</a>
+          ${itemLink ? `<a class="btn btn-ghost" href="${escapeHtml(itemLink)}">Open find</a>` : ""}
+        </div>`;
       out.classList.add("show");
-      if (grid) grid.style.opacity = "1";
+      track("qc_search", {
+        link_url: raw,
+        item_id: id || undefined,
+        matches: matched.length,
+      });
     });
   }
 
@@ -467,6 +571,23 @@
     return "$" + (Number.isInteger(v) ? v : v.toFixed(2));
   }
 
+  function productHref(p) {
+    return p && p.id ? `item.html?id=${encodeURIComponent(p.id)}` : "spreadsheet.html";
+  }
+
+  function kakobuyHref(p) {
+    if (!p || !p.url) return SIGNUP;
+    return `https://www.kakobuy.com/item/details?url=${encodeURIComponent(p.url)}&affcode=${AFF}`;
+  }
+
+  function channelOf(p) {
+    const u = String(p?.url || "").toLowerCase();
+    if (u.includes("weidian.com")) return "Weidian";
+    if (u.includes("1688.com")) return "1688";
+    if (u.includes("taobao.com") || u.includes("tmall.com")) return "Taobao";
+    return "Marketplace";
+  }
+
   function productCard(p) {
     const hay = [p.title, p.brand, p.categoryLabel, ...(p.tags || [])].join(" ").toLowerCase();
     const badge = p.hot ? "Hot" : p.qc ? "QC" : "";
@@ -476,10 +597,7 @@
     const badgeHtml = badge
       ? `<span class="product-badge">${escapeHtml(badge)}</span>`
       : "";
-    const href = p.url
-      ? `https://www.kakobuy.com/item/details?url=${encodeURIComponent(p.url)}&affcode=${AFF}`
-      : "qc-finder.html";
-    return `<a class="product-card" href="${escapeHtml(href)}" target="_blank" rel="noopener sponsored" data-item="${escapeHtml(hay)}" data-cat="${escapeHtml(p.category || "")}">
+    return `<a class="product-card" href="${escapeHtml(productHref(p))}" data-item="${escapeHtml(hay)}" data-cat="${escapeHtml(p.category || "")}">
       <div class="product-media">${badgeHtml}${media}</div>
       <div class="product-body">
         <h3>${escapeHtml(p.title)}</h3>
@@ -515,16 +633,13 @@
 
   function sheetCard(p) {
     const hay = [p.title, p.brand, p.categoryLabel, ...(p.tags || [])].join(" ").toLowerCase();
-    const href = p.url
-      ? `https://www.kakobuy.com/item/details?url=${encodeURIComponent(p.url)}&affcode=${AFF}`
-      : "qc-finder.html";
     const img = p.image
       ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" decoding="async" width="400" height="400" />`
       : "";
-    return `<a class="product-card find-card" href="${escapeHtml(href)}" target="_blank" rel="noopener sponsored" data-item="${escapeHtml(hay)}" data-cat="${escapeHtml(p.category || "")}">
+    return `<a class="product-card find-card" href="${escapeHtml(productHref(p))}" data-item="${escapeHtml(hay)}" data-cat="${escapeHtml(p.category || "")}">
       <div class="find-media">
         <span class="find-rating"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.2 18l.9-5.4L4.2 8.7l5.4-.8z"/></svg> ${ratingOf(p)}/10</span>
-        <span class="find-ext" aria-hidden="true">↗</span>
+        <span class="find-ext" aria-hidden="true">→</span>
         ${img}
       </div>
       <div class="find-body">
@@ -660,12 +775,6 @@
   initSpreadsheet();
 
   /* Homepage — Kakofind-style blocks from catalog */
-  function productHref(p) {
-    return p.url
-      ? `https://www.kakobuy.com/item/details?url=${encodeURIComponent(p.url)}&affcode=${AFF}`
-      : "spreadsheet.html";
-  }
-
   function discountOf(p, i) {
     const base = 28 + ((Number(p.opens) || 0) % 27) + (i % 5);
     return Math.min(55, base);
@@ -680,7 +789,7 @@
       ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" decoding="async" />`
       : "";
     const desc = `${p.brand || p.categoryLabel || "Verified find"} · limited stock · QC checked`;
-    return `<a class="deal-card" href="${escapeHtml(productHref(p))}" target="_blank" rel="noopener sponsored">
+    return `<a class="deal-card" href="${escapeHtml(productHref(p))}">
       <div class="deal-media"><span class="deal-off">-${off}%</span>${img}</div>
       <div class="deal-body">
         <h3>${escapeHtml(p.title)}</h3>
@@ -700,7 +809,7 @@
     const img = p.image
       ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" decoding="async" />`
       : "";
-    return `<a class="shelf-card" href="${escapeHtml(productHref(p))}" target="_blank" rel="noopener sponsored">
+    return `<a class="shelf-card" href="${escapeHtml(productHref(p))}">
       <div class="shelf-media"><span class="shelf-rating">★ ${ratingOf(p)}/10</span>${img}</div>
       <div class="shelf-body">
         <h4>${escapeHtml(p.title)}</h4>
@@ -708,6 +817,198 @@
       </div>
     </a>`;
   }
+
+  function similarCard(p) {
+    const img = p.image
+      ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" decoding="async" />`
+      : "";
+    const shortTitle = [p.brand, p.categoryLabel].filter(Boolean).join(" ") || p.title;
+    return `<a class="similar-card" href="${escapeHtml(productHref(p))}">
+      <div class="similar-media">${img}</div>
+      <div class="similar-body">
+        <h3>${escapeHtml(shortTitle)}</h3>
+        <strong>${money(p.price)}</strong>
+      </div>
+    </a>`;
+  }
+
+  function gallerySources(p) {
+    const pid = String(p.id || "").replace(/^p-/, "");
+    const main = p.image || `img/products/${pid}.webp`;
+    const extras = [`img/products/${pid}-2.webp`, `img/products/${pid}-3.webp`];
+    return [main, ...extras];
+  }
+
+  function initItemPage() {
+    const root = $("#item-root");
+    if (!root || document.body.dataset.page !== "item") return;
+
+    const params = new URLSearchParams(location.search);
+    const id = params.get("id");
+    const p = ALL_PRODUCTS.find((x) => String(x.id) === String(id));
+    const crumbs = $("#item-crumbs");
+
+    if (!p) {
+      document.title = "Find not found — Kakobuyspreadsheet";
+      if (crumbs) {
+        crumbs.innerHTML = `<a href="spreadsheet.html">← Back to database</a>`;
+      }
+      root.innerHTML = `<div class="item-missing">
+        <h1>Find not found</h1>
+        <p>This item is missing from the live spreadsheet.</p>
+        <a class="btn btn-red" href="spreadsheet.html">Open spreadsheet</a>
+      </div>`;
+      return;
+    }
+
+    const channel = channelOf(p);
+    const buyUrl = kakobuyHref(p);
+    const rating = ratingOf(p);
+    const views = Math.max(12, Math.round(Number(p.opens) || 0));
+    const titleBits = [p.brand, p.categoryLabel].filter(Boolean);
+    const displayTitle = titleBits.length ? titleBits.join(", ") : p.title;
+    document.title = `${p.title} — Kakobuyspreadsheet`;
+    const desc = document.querySelector('meta[name="description"]');
+    if (desc) {
+      desc.setAttribute(
+        "content",
+        `${p.title} · ${money(p.price)} · ${channel}. Open on Kakobuy with QC-ready link.`
+      );
+    }
+
+    if (crumbs) {
+      crumbs.innerHTML = `<a href="spreadsheet.html">← Back to database</a>
+        <span class="crumb-sep">/</span>
+        <a href="spreadsheet.html?cat=${encodeURIComponent(p.category || "")}">${escapeHtml(p.categoryLabel || p.category || "finds")}</a>`;
+    }
+
+    const gallery = gallerySources(p);
+
+    root.innerHTML = `
+      <div class="item-gallery">
+        <div class="item-shot">
+          <img id="item-main" src="${escapeHtml(gallery[0])}" alt="${escapeHtml(p.title)}" />
+          <span class="item-shot-count" id="item-shot-count">1/${gallery.length}</span>
+        </div>
+        <div class="item-thumbs" id="item-thumbs">
+          ${gallery
+            .map(
+              (src, i) =>
+                `<button type="button" data-src="${escapeHtml(src)}" data-i="${i}" class="${i === 0 ? "is-on" : ""}" aria-label="Photo ${i + 1}">
+                  <img src="${escapeHtml(src)}" alt="" loading="lazy" decoding="async" />
+                </button>`
+            )
+            .join("")}
+        </div>
+      </div>
+      <div class="buy-box">
+        <div class="item-badges">
+          <span class="item-badge">${escapeHtml(channel)}</span>
+          <span class="item-badge item-badge-cat">${escapeHtml((p.categoryLabel || p.category || "Find").toUpperCase())}</span>
+          ${p.qc ? `<span class="item-badge item-badge-qc">QC</span>` : ""}
+          ${p.hot ? `<span class="item-badge item-badge-hot">Hot</span>` : ""}
+        </div>
+        <h1>${escapeHtml(displayTitle)}</h1>
+        <p class="item-full-title">${escapeHtml(p.title)}</p>
+        <div class="item-stats">
+          <span>${rating}/10 quality</span>
+          <span class="item-star">★ 5.0</span>
+          <span>${views.toLocaleString("en-US")} views</span>
+        </div>
+        <div class="item-price-row">
+          <div class="item-price">${money(p.price)}</div>
+          <button type="button" class="item-icon-btn" id="item-share" aria-label="Share" title="Copy link">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M10 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4"/></svg>
+          </button>
+        </div>
+        <div class="item-cta-stack">
+          <a class="btn btn-red item-buy" href="${escapeHtml(buyUrl)}" target="_blank" rel="noopener sponsored"
+            data-item-id="${escapeHtml(String(p.id || ""))}"
+            data-item-name="${escapeHtml(p.title || "")}"
+            data-item-category="${escapeHtml(p.category || "")}"
+            data-item-price="${escapeHtml(String(p.price || 0))}">
+            <span class="item-buy-k">K</span>
+            Buy on Kakobuy
+            <span class="item-buy-ext" aria-hidden="true">↗</span>
+          </a>
+          <a class="btn btn-soft item-qc-link" href="qc-finder.html">Check QC Finder →</a>
+        </div>
+        <div class="item-seller">
+          <div class="item-seller-main">
+            <span class="item-seller-mark">K</span>
+            <div>
+              <strong>Kakobuyspreadsheet <span class="item-trusted">TRUSTED</span></strong>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    const mainImg = $("#item-main");
+    const countEl = $("#item-shot-count");
+    const thumbs = $("#item-thumbs");
+    thumbs?.querySelectorAll("button").forEach((btn) => {
+      const thumb = btn.querySelector("img");
+      thumb?.addEventListener("error", () => {
+        btn.classList.add("is-empty");
+        btn.removeAttribute("data-src");
+        thumb.remove();
+        if (btn.classList.contains("is-on")) {
+          const next = thumbs.querySelector("button[data-src]");
+          if (next) next.click();
+        }
+      });
+      btn.addEventListener("click", () => {
+        const src = btn.getAttribute("data-src");
+        if (!src || !mainImg) return;
+        mainImg.src = src;
+        const i = Number(btn.dataset.i || 0) + 1;
+        const visible = thumbs.querySelectorAll("button[data-src]").length || gallery.length;
+        if (countEl) countEl.textContent = `${i}/${visible}`;
+        thumbs.querySelectorAll("button").forEach((el) => el.classList.toggle("is-on", el === btn));
+      });
+    });
+
+    $("#item-share")?.addEventListener("click", async () => {
+      const btn = $("#item-share");
+      try {
+        await navigator.clipboard.writeText(location.href);
+        btn?.classList.add("is-copied");
+        setTimeout(() => btn?.classList.remove("is-copied"), 1200);
+      } catch (_) {}
+    });
+
+    track("view_item", {
+      currency: "USD",
+      value: Number(p.price) || 0,
+      items: [
+        {
+          item_id: String(p.id),
+          item_name: p.title || "",
+          item_category: p.category || "",
+          price: Number(p.price) || 0,
+          quantity: 1,
+        },
+      ],
+    });
+
+    const similar = ALL_PRODUCTS.filter((x) => x.category === p.category && x.id !== p.id)
+      .sort((a, b) => Number(b.opens || 0) - Number(a.opens || 0))
+      .slice(0, 16);
+    const similarSection = $("#similar-section");
+    const rail = $("#similar-rail");
+    if (similarSection && rail && similar.length) {
+      similarSection.hidden = false;
+      rail.innerHTML = similar.map(similarCard).join("");
+      const scrollBy = () => Math.min(rail.clientWidth * 0.8, 720);
+      $("#similar-prev")?.addEventListener("click", () => {
+        rail.scrollBy({ left: -scrollBy(), behavior: "smooth" });
+      });
+      $("#similar-next")?.addEventListener("click", () => {
+        rail.scrollBy({ left: scrollBy(), behavior: "smooth" });
+      });
+    }
+  }
+  initItemPage();
 
   function matchShelf(p, shelf) {
     if (shelf.cat && p.category === shelf.cat) {
@@ -950,19 +1251,84 @@
   backdrop?.addEventListener("click", closeMobile);
   $$("#mobile-nav a").forEach((a) => a.addEventListener("click", closeMobile));
 
-  /* Command palette — pages + keyword suggestions (not product list) */
+  /* Command palette — Popular / Categories / Shortcuts (no image search) */
   const overlay = $("#cmd-overlay");
-  const cmdInput = $("#cmd-input");
-  const cmdList = $(".cmd-list");
-  const staticCmdHtml = cmdList ? cmdList.innerHTML : "";
+  let cmdBox = $("#cmd-box") || $(".cmd-box");
+  let cmdInput = $("#cmd-input");
+  let cmdBody = $("#cmd-body");
   let active = 0;
 
+  const POPULAR = [
+    "Jordan 4",
+    "Moncler",
+    "Stone Island",
+    "Chrome Hearts",
+    "Corteiz",
+    "Ralph Lauren",
+    "Nike Tech",
+    "Trapstar",
+  ];
+  const CMD_CATS = [
+    { slug: "shoes", label: "Shoes" },
+    { slug: "t-shirts", label: "T-shirts" },
+    { slug: "hoodies", label: "Hoodies" },
+    { slug: "jackets", label: "Jackets" },
+    { slug: "pants", label: "Pants" },
+    { slug: "bags", label: "Bags" },
+    { slug: "watches", label: "Watches" },
+    { slug: "accessories", label: "Accessories" },
+  ];
+  const CMD_SHORTCUTS = [
+    {
+      href: "spreadsheet.html",
+      label: "Product Base",
+      icon: '<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16M9 5v14"/></svg>',
+    },
+    {
+      href: "qc-finder.html",
+      label: "QC Finder",
+      icon: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-3.2-3.2"/><path d="M9 11h4M11 9v4"/></svg>',
+    },
+    {
+      href: "index.html#converter",
+      label: "Link Converter",
+      icon: '<svg viewBox="0 0 24 24"><path d="M8 7h11M15 4l4 3-4 3"/><path d="M16 17H5M9 14l-4 3 4 3"/></svg>',
+    },
+  ];
+
+  function ensureCmdShell() {
+    if (!overlay) return false;
+    if (!cmdBox) {
+      cmdBox = document.createElement("div");
+      cmdBox.className = "cmd-box";
+      cmdBox.id = "cmd-box";
+      overlay.innerHTML = "";
+      overlay.appendChild(cmdBox);
+    }
+    if (!$(".cmd-search-row", cmdBox)) {
+      cmdBox.innerHTML = `
+        <div class="cmd-search-row">
+          <span class="cmd-search-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span>
+          <input id="cmd-input" type="search" placeholder="Search reps, brands, items…" autocomplete="off" />
+          <button type="button" class="cmd-esc" id="cmd-esc" aria-label="Close">Esc</button>
+        </div>
+        <div class="cmd-body" id="cmd-body"></div>`;
+      cmdInput = $("#cmd-input", cmdBox);
+      cmdBody = $("#cmd-body", cmdBox);
+      $("#cmd-esc", cmdBox)?.addEventListener("click", closeCmd);
+      cmdInput?.addEventListener("input", () => filterCmd(cmdInput.value));
+    } else {
+      cmdInput = $("#cmd-input", cmdBox);
+      cmdBody = $("#cmd-body", cmdBox);
+    }
+    return true;
+  }
+
   function buildSuggestIndex() {
-    const map = new Map(); // phrase -> { phrase, type, count }
+    const map = new Map();
     const add = (phrase, type) => {
       const key = String(phrase || "").trim().toLowerCase();
-      if (!key || key.length < 2) return;
-      if (key.length > 42) return;
+      if (!key || key.length < 2 || key.length > 42) return;
       const cur = map.get(key);
       if (cur) cur.count += 1;
       else map.set(key, { phrase: String(phrase).trim(), type, count: 1 });
@@ -971,27 +1337,52 @@
       if (p.brand) add(p.brand, "Brand");
       if (p.categoryLabel) add(p.categoryLabel, "Category");
       (p.tags || []).forEach((t) => add(t, "Tag"));
-      // short title phrases: first 4–6 words if useful
       const words = String(p.title || "")
         .replace(/[^\w\s+\-']/g, " ")
         .split(/\s+/)
         .filter(Boolean);
       if (words.length >= 2) add(words.slice(0, 2).join(" "), "Suggest");
       if (words.length >= 3) add(words.slice(0, 3).join(" "), "Suggest");
-    });
-    // common brand+category combos
-    ALL_PRODUCTS.forEach((p) => {
       if (p.brand && p.categoryLabel) add(`${p.brand} ${p.categoryLabel}`, "Suggest");
     });
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
   }
   const SUGGEST_INDEX = ALL_PRODUCTS.length ? buildSuggestIndex() : [];
 
+  function renderBrowseHome() {
+    if (!cmdBody) return;
+    const popular = POPULAR.map(
+      (p) =>
+        `<a class="cmd-pill cmd-item" href="spreadsheet.html?q=${encodeURIComponent(p)}">${escapeHtml(p)}</a>`
+    ).join("");
+    const cats = CMD_CATS.map((c) => {
+      const icon = CAT_ICONS[c.slug] || CAT_ICONS.all;
+      return `<a class="cmd-cat cmd-item" href="spreadsheet.html?cat=${encodeURIComponent(c.slug)}">${icon}<span>${escapeHtml(c.label)}</span></a>`;
+    }).join("");
+    const shortcuts = CMD_SHORTCUTS.map(
+      (s) =>
+        `<a class="cmd-shortcut cmd-item" href="${escapeHtml(s.href)}"><span class="cmd-shortcut-ico" aria-hidden="true">${s.icon}</span><span>${escapeHtml(s.label)}</span></a>`
+    ).join("");
+    cmdBody.innerHTML = `
+      <div class="cmd-block">
+        <p class="cmd-label">Popular</p>
+        <div class="cmd-popular">${popular}</div>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">Categories</p>
+        <div class="cmd-cats">${cats}</div>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">Shortcuts</p>
+        <div class="cmd-shortcuts">${shortcuts}</div>
+      </div>`;
+  }
+
   function openCmd() {
-    overlay?.classList.add("open");
+    if (!ensureCmdShell()) return;
+    overlay.classList.add("open");
     if (cmdInput) {
       cmdInput.value = "";
-      cmdInput.placeholder = "Type a brand or keyword…";
       cmdInput.focus();
     }
     filterCmd("");
@@ -1000,65 +1391,77 @@
     overlay?.classList.remove("open");
   }
   function visibleCmdItems() {
-    return $$(".cmd-item", cmdList || document).filter((el) => el.style.display !== "none");
+    return $$(".cmd-item", cmdBody || document).filter((el) => el.style.display !== "none");
   }
   function setActive(i) {
     const visible = visibleCmdItems();
+    $$(".cmd-item", cmdBody || document).forEach((el) => el.classList.remove("active"));
+    if (!visible.length || i < 0) {
+      active = -1;
+      return;
+    }
     active = Math.max(0, Math.min(i, visible.length - 1));
-    $$(".cmd-item", cmdList || document).forEach((el) => el.classList.remove("active"));
     visible[active]?.classList.add("active");
   }
   function filterCmd(q) {
-    if (!cmdList) return;
+    if (!ensureCmdShell() || !cmdBody) return;
     const query = q.trim().toLowerCase();
     const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
 
-    cmdList.innerHTML = staticCmdHtml;
-    const pageItems = $$(".cmd-item", cmdList);
-    pageItems.forEach((el) => {
-      if (!tokens.length) {
-        el.style.display = "";
-        return;
-      }
-      const text = el.textContent.toLowerCase();
-      el.style.display = tokens.every((t) => text.includes(t)) ? "" : "none";
-    });
-
-    if (tokens.length) {
-      const suggestions = SUGGEST_INDEX.filter((s) => {
-        const hay = s.phrase.toLowerCase();
-        return tokens.every((t) => hay.includes(t)) || hay.startsWith(query);
-      }).slice(0, 10);
-
-      if (suggestions.length) {
-        const head = document.createElement("div");
-        head.className = "cmd-section";
-        head.textContent = "Suggestions";
-        cmdList.appendChild(head);
-
-        suggestions.forEach((s) => {
-          const a = document.createElement("a");
-          a.className = "cmd-item cmd-suggest";
-          a.href = `spreadsheet.html?q=${encodeURIComponent(s.phrase)}`;
-          a.innerHTML = `<span class="cmd-suggest-text">${escapeHtml(s.phrase)}</span><span>${escapeHtml(s.type)}</span>`;
-          cmdList.appendChild(a);
-        });
-      }
-
-      const more = document.createElement("a");
-      more.className = "cmd-item";
-      more.href = `spreadsheet.html?q=${encodeURIComponent(query)}`;
-      more.innerHTML = `Search “${escapeHtml(query)}” in spreadsheet <span>Open</span>`;
-      cmdList.appendChild(more);
+    if (!tokens.length) {
+      renderBrowseHome();
+      setActive(-1);
+      return;
     }
 
-    if (!visibleCmdItems().length && tokens.length) {
-      const empty = document.createElement("div");
-      empty.className = "cmd-empty";
-      empty.textContent = "No suggestions — try another keyword.";
-      cmdList.appendChild(empty);
-    }
+    const pageHits = [
+      { href: "spreadsheet.html", label: "Kakobuy Spreadsheet", type: "Page" },
+      { href: "deals.html", label: "Kakobuy Deals", type: "Page" },
+      { href: "qc-finder.html", label: "QC Finder", type: "Tool" },
+      { href: "coupons.html", label: "Kakobuy coupons", type: "Codes" },
+      { href: "faq.html", label: "How to order FAQ", type: "Guide" },
+      { href: "index.html#converter", label: "Link converter", type: "Tool" },
+      { href: "index.html#estimate", label: "Shipping estimate", type: "Tool" },
+      { href: "privacy.html", label: "Privacy policy", type: "Legal" },
+      { href: "disclaimer.html", label: "Disclaimer", type: "Legal" },
+    ].filter((p) => tokens.every((t) => p.label.toLowerCase().includes(t)));
 
+    const suggestions = SUGGEST_INDEX.filter((s) => {
+      const hay = s.phrase.toLowerCase();
+      return tokens.every((t) => hay.includes(t)) || hay.startsWith(query);
+    }).slice(0, 10);
+
+    const productHits = ALL_PRODUCTS.filter((p) => {
+      const hay = [p.title, p.brand, p.categoryLabel, ...(p.tags || []), p.id].join(" ").toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    }).slice(0, 8);
+
+    let html = `<div class="cmd-results">`;
+    if (pageHits.length) {
+      html += `<div class="cmd-section">Pages</div>`;
+      pageHits.forEach((p) => {
+        html += `<a class="cmd-item" href="${escapeHtml(p.href)}"><span>${escapeHtml(p.label)}</span><span>${escapeHtml(p.type)}</span></a>`;
+      });
+    }
+    if (productHits.length) {
+      html += `<div class="cmd-section">Finds</div>`;
+      productHits.forEach((p) => {
+        const label = p.title.length > 56 ? p.title.slice(0, 54) + "…" : p.title;
+        html += `<a class="cmd-item" href="${escapeHtml(productHref(p))}"><span>${escapeHtml(label)}</span><span>${money(p.price)}</span></a>`;
+      });
+    }
+    if (suggestions.length) {
+      html += `<div class="cmd-section">Suggestions</div>`;
+      suggestions.forEach((s) => {
+        html += `<a class="cmd-item cmd-suggest" href="spreadsheet.html?q=${encodeURIComponent(s.phrase)}"><span class="cmd-suggest-text">${escapeHtml(s.phrase)}</span><span>${escapeHtml(s.type)}</span></a>`;
+      });
+    }
+    html += `<a class="cmd-item" href="spreadsheet.html?q=${encodeURIComponent(query)}">Search “${escapeHtml(query)}” in spreadsheet <span>Open</span></a>`;
+    if (!pageHits.length && !suggestions.length && !productHits.length) {
+      html += `<div class="cmd-empty">No suggestions — try another keyword.</div>`;
+    }
+    html += `</div>`;
+    cmdBody.innerHTML = html;
     setActive(0);
   }
   function goActive() {
@@ -1071,14 +1474,11 @@
     closeCmd();
   }
 
+  ensureCmdShell();
   $("#search-trigger")?.addEventListener("click", openCmd);
   overlay?.addEventListener("click", (e) => {
     if (e.target === overlay) closeCmd();
-  });
-  cmdInput?.addEventListener("input", () => filterCmd(cmdInput.value));
-  cmdList?.addEventListener("click", (e) => {
-    const item = e.target.closest(".cmd-item");
-    if (item) closeCmd();
+    else if (e.target.closest(".cmd-item")) closeCmd();
   });
   document.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -1090,15 +1490,216 @@
     if (e.key === "Escape") closeCmd();
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive(active + 1);
+      setActive(active < 0 ? 0 : active + 1);
     }
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive(active - 1);
+      setActive(active < 0 ? 0 : active - 1);
     }
     if (e.key === "Enter") {
       e.preventDefault();
       goActive();
     }
   });
+
+  /* ---------- PWA install banner + guide ---------- */
+  const pwaState = (KakoHub.pwa = KakoHub.pwa || { deferred: null });
+
+  function pwaStandalone() {
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true
+    );
+  }
+  function pwaDismissed() {
+    try {
+      const t = Number(localStorage.getItem("kh-pwa-dismiss") || 0);
+      return t && Date.now() - t < 30 * 24 * 60 * 60 * 1000;
+    } catch (_) {
+      return false;
+    }
+  }
+  function pwaInstalledFlag() {
+    try {
+      return localStorage.getItem("kh-pwa-installed") === "1";
+    } catch (_) {
+      return false;
+    }
+  }
+  function pwaIos() {
+    return (
+      (/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+  }
+  function pwaAndroid() {
+    return /android/i.test(navigator.userAgent);
+  }
+  function pwaChromium() {
+    return (
+      /Chrome|Edg|Chromium/i.test(navigator.userAgent) &&
+      !/iPhone|iPad|CriOS|EdgiOS/i.test(navigator.userAgent)
+    );
+  }
+
+  function refreshPwaUi() {
+    const banner = $("#pwa-banner");
+    const hide =
+      pwaStandalone() || pwaInstalledFlag() || pwaDismissed() || !banner;
+    if (banner) banner.classList.toggle("is-off", !!hide);
+  }
+  KakoHub.refreshPwaUi = refreshPwaUi;
+
+  function showInstallGuide() {
+    const guide = $("#ios-guide");
+    const title = $("#pwa-guide-title");
+    const gif = $("#pwa-guide-gif");
+    const steps = $("#pwa-guide-steps");
+    if (!guide || !gif || !steps) return;
+    let data;
+    if (pwaIos()) {
+      data = {
+        title: "Add to Home Screen",
+        src: "/img/ios-a2hs.gif",
+        alt: "Safari: tap Share, then Add to Home Screen",
+        steps: [
+          "Tap <b>Share</b> or the <b>•••</b> button",
+          "Tap <b>Add to Home Screen</b>",
+          "Tap <b>Add</b>",
+        ],
+      };
+    } else if (pwaAndroid()) {
+      data = {
+        title: "Install app",
+        src: "/img/android-a2hs.gif",
+        alt: "Chrome: tap menu, then Install app",
+        steps: [
+          "Tap the <b>⋮</b> menu at the top right",
+          "Tap <b>Install app</b> or <b>Add to Home screen</b>",
+          "Tap <b>Install</b>",
+        ],
+      };
+    } else {
+      data = {
+        title: "Install on this computer",
+        src: "/img/icon-512.png",
+        alt: "Kakobuyspreadsheet icon",
+        steps: [
+          "In <b>Chrome</b> or <b>Edge</b>, click the install icon in the address bar",
+          "Or click <b>Add</b> when the system prompt appears",
+          "Safari: <b>File → Add to Dock</b>",
+        ],
+      };
+    }
+    if (title) title.textContent = data.title;
+    gif.src = data.src;
+    gif.alt = data.alt;
+    steps.innerHTML = data.steps.map((s) => `<li>${s}</li>`).join("");
+    guide.classList.add("is-on");
+  }
+
+  async function waitForInstallPrompt(ms) {
+    const start = Date.now();
+    while (!pwaState.deferred && Date.now() - start < ms) {
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    return pwaState.deferred;
+  }
+
+  async function installPwa() {
+    track("pwa_install_click");
+    const addBtn = $("#pwa-add");
+    const prev = addBtn ? addBtn.textContent : "";
+    if (addBtn) addBtn.textContent = "…";
+    const dp = await waitForInstallPrompt(pwaChromium() ? 2800 : 400);
+    if (addBtn) addBtn.textContent = prev || "Add";
+    if (dp && typeof dp.prompt === "function") {
+      try {
+        dp.prompt();
+        const choice = await dp.userChoice.catch(() => ({ outcome: "dismissed" }));
+        pwaState.deferred = null;
+        if (choice && choice.outcome === "accepted") {
+          try {
+            localStorage.setItem("kh-pwa-installed", "1");
+          } catch (_) {}
+          $("#ios-guide")?.classList.remove("is-on");
+          $("#pwa-banner")?.classList.add("is-off");
+        }
+        refreshPwaUi();
+        return;
+      } catch (_) {
+        pwaState.deferred = null;
+      }
+    }
+    showInstallGuide();
+  }
+
+  function mountPwa() {
+    if (!$("#pwa-banner")) {
+      const banner = document.createElement("div");
+      banner.id = "pwa-banner";
+      banner.className = "pwa-banner is-off";
+      banner.innerHTML = `
+        <img src="/img/icon-192.png" alt="" width="44" height="44" />
+        <p>Add Kakobuyspreadsheet<span>Install for quick QC &amp; spreadsheet access</span></p>
+        <button type="button" class="btn btn-red" id="pwa-add">Add</button>
+        <button type="button" class="pwa-dismiss" id="pwa-dismiss" aria-label="Not now">×</button>
+      `;
+      document.body.appendChild(banner);
+    }
+    if (!$("#ios-guide")) {
+      const guide = document.createElement("aside");
+      guide.id = "ios-guide";
+      guide.className = "ios-guide";
+      guide.innerHTML = `
+        <div class="ios-guide-top">
+          <p id="pwa-guide-title">Add to Home Screen</p>
+          <button type="button" class="pwa-dismiss" id="ios-guide-dismiss" aria-label="Close">×</button>
+        </div>
+        <img id="pwa-guide-gif" src="/img/ios-a2hs.gif" alt="Add to Home Screen" width="420" height="280" />
+        <ol id="pwa-guide-steps"></ol>
+      `;
+      document.body.appendChild(guide);
+    }
+    const addBtn = $("#pwa-add");
+    if (addBtn && !addBtn.dataset.bound) {
+      addBtn.dataset.bound = "1";
+      addBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        installPwa();
+      });
+    }
+    const dismissBtn = $("#pwa-dismiss");
+    if (dismissBtn && !dismissBtn.dataset.bound) {
+      dismissBtn.dataset.bound = "1";
+      dismissBtn.addEventListener("click", () => {
+        $("#pwa-banner")?.classList.add("is-off");
+        try {
+          localStorage.setItem("kh-pwa-dismiss", String(Date.now()));
+        } catch (_) {}
+        track("pwa_dismiss");
+      });
+    }
+    const closeGuide = $("#ios-guide-dismiss");
+    if (closeGuide && !closeGuide.dataset.bound) {
+      closeGuide.dataset.bound = "1";
+      closeGuide.addEventListener("click", () => {
+        $("#ios-guide")?.classList.remove("is-on");
+        track("pwa_guide_dismiss");
+      });
+    }
+    // Show banner after a short delay on mobile / when installable
+    setTimeout(() => {
+      if (pwaStandalone() || pwaInstalledFlag() || pwaDismissed()) {
+        refreshPwaUi();
+        return;
+      }
+      const banner = $("#pwa-banner");
+      if (banner && (pwaState.deferred || pwaIos() || pwaAndroid())) {
+        banner.classList.remove("is-off");
+      }
+      refreshPwaUi();
+    }, 1800);
+  }
+  mountPwa();
 })();

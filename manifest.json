@@ -1,0 +1,56 @@
+{
+  "id": "/",
+  "name": "Kakobuyspreadsheet",
+  "short_name": "Kakobuy Spreadsheet",
+  "description": "Free Kakobuy Item Finder: spreadsheet, QC Finder, coupons and warehouse QC photos.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#0a0b0e",
+  "theme_color": "#fb2840",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["shopping", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Spreadsheet",
+      "short_name": "Spreadsheet",
+      "url": "/spreadsheet.html",
+      "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "QC Finder",
+      "short_name": "QC Finder",
+      "url": "/qc-finder.html",
+      "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Coupons",
+      "short_name": "Coupons",
+      "url": "/coupons.html",
+      "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
