@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kakobuy Deals — Hot Offers &amp; Discounts 2026 | Kakobuyspreadsheet</title>
+  <meta name="description" content="Hand-picked Kakobuy deals with verified discounts, QC-checked finds, and direct Kakobuy links. Browse live special offers on Kakobuyspreadsheet." />
+  <link rel="canonical" href="/deals.html" />
+  <link rel="icon" type="image/png" href="img/favicon.png" />
+  <link rel="apple-touch-icon" href="img/favicon.png" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="deals">
+  <div class="promo"><div class="wrap">Hot Kakobuy deals · limited stock · <a href="coupons.html">coupons</a></div></div>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="index.html"><span class="brand-mark">K</span><span class="brand-name">Kakobuy<span>spreadsheet</span></span></a>
+      <nav class="nav-tools">
+        <a href="spreadsheet.html">Spreadsheet</a>
+        <a href="qc-finder.html">QC Finder</a>
+        <a class="active" href="deals.html">Deals</a>
+        <a href="coupons.html">Coupons</a>
+        <a href="faq.html">FAQ</a>
+      </nav>
+      <div class="header-actions">
+        <button type="button" class="search-trigger" id="search-trigger" aria-label="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <span>Search finds, brands, tools…</span>
+        </button>
+        <button type="button" class="menu-btn" id="menu-btn" aria-label="Menu"><span></span></button>
+      </div>
+    </div>
+  </header>
+  <div class="backdrop" id="backdrop"></div>
+  <nav class="mobile-nav" id="mobile-nav">
+    <a href="spreadsheet.html">Spreadsheet</a>
+    <a href="qc-finder.html">QC Finder</a>
+    <a href="deals.html">Deals</a>
+    <a href="coupons.html">Coupons</a>
+    <a href="faq.html">FAQ</a>
+  </nav>
+
+  <main>
+    <section class="section deals-page-hero">
+      <div class="wrap deals-hero-grid">
+        <div>
+          <span class="eyebrow-pill eyebrow-hot">Hot Kakobuy deals</span>
+          <h1>Kakobuy <em>Deals</em></h1>
+          <p class="lede deals-lede">Hand-picked offers with clear prices and direct Kakobuy links. Checked before they go live — grab them while stock lasts.</p>
+          <div class="deals-stats" id="deals-stats">
+            <div class="deals-stat"><strong id="stat-live">—</strong><span>Live deals</span></div>
+            <div class="deals-stat"><strong id="stat-avg">—</strong><span>Average discount</span></div>
+            <div class="deals-stat"><strong id="stat-max">—</strong><span>Biggest discount</span></div>
+            <div class="deals-stat"><strong id="stat-save">—</strong><span>Total savings</span></div>
+          </div>
+        </div>
+        <div class="deals-hero-art" aria-hidden="true">
+          <img src="img/mascot.png" alt="" width="160" height="400" />
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight">
+      <div class="wrap">
+        <div class="verified-banner">
+          <img class="verified-mascot" src="img/mascot.png" alt="" width="72" height="180" />
+          <div>
+            <div class="verified-title"><span aria-hidden="true">✓</span> Verified deals</div>
+            <p>Only items with solid build quality make this list. Stock is limited — <strong>hurry up and grab them!</strong></p>
+          </div>
+        </div>
+
+        <div class="deals-find-bar">
+          <label class="field-label" for="deals-search">Search the deals</label>
+          <input class="field" id="deals-search" type="search" placeholder="Search the deals…" />
+        </div>
+
+        <div class="deal-toolbar">
+          <div class="deal-tabs" id="deals-page-tabs" role="tablist">
+            <button type="button" class="deal-tab active" data-deal="featured"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.2 18l.9-5.4L4.2 8.7l5.4-.8z"/></svg> Featured</button>
+            <button type="button" class="deal-tab" data-deal="discount"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10l8-7 8 7v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="2"/></svg> Biggest discounts</button>
+            <button type="button" class="deal-tab" data-deal="newest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 10-14h-7l0-6z"/></svg> Newest</button>
+            <button type="button" class="deal-tab" data-deal="cheap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5-6 5 6M7 14l5 6 5-6"/></svg> Cheapest</button>
+            <button type="button" class="deal-tab" data-deal="quality"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg> Best quality</button>
+          </div>
+        </div>
+
+        <p class="sheet-meta" id="deals-page-meta">Loading deals…</p>
+        <div class="deal-grid deals-page-grid" id="deals-page-grid"></div>
+        <div class="sheet-more" id="deals-page-more" hidden>
+          <button type="button" class="btn btn-ghost" id="deals-load-more">Load more deals</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap legal">© Kakobuyspreadsheet 2026 · <a href="index.html">Home</a> · <a href="spreadsheet.html">Spreadsheet</a> · <a href="coupons.html">Coupons</a></div>
+  </footer>
+
+  <div class="cmd-overlay" id="cmd-overlay">
+    <div class="cmd-box">
+      <input id="cmd-input" type="search" placeholder="Jump to…" autocomplete="off" />
+      <div class="cmd-list">
+        <a class="cmd-item" href="deals.html">Deals <span>Page</span></a>
+        <a class="cmd-item" href="spreadsheet.html">Spreadsheet <span>Page</span></a>
+        <a class="cmd-item" href="qc-finder.html">QC Finder <span>Tool</span></a>
+        <a class="cmd-item" href="coupons.html">Coupons <span>Codes</span></a>
+        <a class="cmd-item" href="index.html">Home hub <span>Home</span></a>
+      </div>
+    </div>
+  </div>
+  <script src="js/build-info.js"></script>
+  <script src="js/products.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

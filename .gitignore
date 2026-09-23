@@ -1,0 +1,9 @@
+.DS_Store
+**/.DS_Store
+img/products
+img/7dc7da*.png
+*.xlsx
+Kakofind*.md
+scripts/__pycache__/
+*.pyc
+.vscode/
