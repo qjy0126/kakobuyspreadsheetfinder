@@ -7,3 +7,4 @@ Kakofind*.md
 scripts/__pycache__/
 *.pyc
 .vscode/
+.wrangler/

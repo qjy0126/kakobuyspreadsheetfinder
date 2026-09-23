@@ -1,7 +1,15 @@
 name = "kakobuyspreadsheetfinder"
 compatibility_date = "2026-09-23"
+workers_dev = true
 
 # Static site for kakobuyspreadsheetfinder.com — GitHub: qjy0126/kakobuyspreadsheetfinder
+# Custom domains: bind in Cloudflare dashboard after deleting imported A/CNAME,
+# or run: wrangler deploy (with routes below) once DNS conflict is cleared.
+routes = [
+  { pattern = "kakobuyspreadsheetfinder.com", custom_domain = true },
+  { pattern = "www.kakobuyspreadsheetfinder.com", custom_domain = true }
+]
+
 [assets]
 directory = "."
 not_found_handling = "none"
