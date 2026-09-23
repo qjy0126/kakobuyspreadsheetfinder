@@ -1,0 +1,10 @@
+.git
+.github
+.vscode
+**/.DS_Store
+*.xlsx
+Kakofind*.md
+scripts/__pycache__/
+*.pyc
+.wrangler
+node_modules
