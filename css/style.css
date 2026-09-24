@@ -2530,7 +2530,9 @@ a.qc-tile:hover {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.item-badge-cat { color: var(--ink); }
+.item-badge-cat { color: var(--ink); text-decoration: none; }
+.item-badge-cat:hover { text-decoration: underline; }
+.crumb-current { opacity: 0.7; }
 .item-badge-qc {
   color: var(--ok);
   border-color: var(--ok-line);
