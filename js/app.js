@@ -11,6 +11,10 @@
 
   window.KakoHub = window.KakoHub || {};
 
+  function t(key, vars) {
+    return typeof KakoHub.t === "function" ? KakoHub.t(key, vars) : key;
+  }
+
   /* Analytics — GA4 + buy_kakobuy click events */
   if (!document.querySelector('script[src*="js/analytics.js"]')) {
     const analytics = document.createElement("script");
@@ -566,18 +570,36 @@
   const PAGE_SIZE = 48;
 
   function money(n) {
+    if (typeof KakoHub.money === "function") return KakoHub.money(n);
     const v = Number(n);
     if (!v) return "—";
     return "$" + (Number.isInteger(v) ? v : v.toFixed(2));
   }
 
+  function priceHtml(usd, className) {
+    const n = Number(usd) || 0;
+    const cls = className ? ` class="${className}"` : "";
+    return `<span${cls} data-usd="${n}">${money(n)}</span>`;
+  }
+
   function pathPrefix() {
-    return document.body?.dataset?.page === "category" ? "../" : "";
+    const path = location.pathname || "";
+    if (/^\/pl\/[^/]+\/?$/.test(path) || (document.body?.dataset?.page === "category" && document.body?.dataset?.lang === "pl")) {
+      return "../../";
+    }
+    if (document.body?.dataset?.page === "category") return "../";
+    return "";
   }
 
   function catHref(slug) {
     const p = pathPrefix();
+    const lang = (KakoHub.i18n && KakoHub.i18n.lang) || "en";
     if (!slug || slug === "all") return `${p}spreadsheet.html`;
+    if (lang === "pl") {
+      // from /pl/shoes/ → ../hoodies/ ; from root → pl/hoodies/
+      if (p === "../../") return `../${slug}/`;
+      return `${p}pl/${slug}/`;
+    }
     return `${p}${slug}/`;
   }
 
@@ -634,7 +656,7 @@
       <div class="product-media">${badgeHtml}${media}</div>
       <div class="product-body">
         <h3>${escapeHtml(p.title)}</h3>
-        <div class="product-meta"><span>${escapeHtml(p.brand || p.categoryLabel || "")}</span><strong>${money(p.price)}</strong></div>
+        <div class="product-meta"><span>${escapeHtml(p.brand || p.categoryLabel || "")}</span><strong>${priceHtml(p.price)}</strong></div>
       </div>
     </a>`;
   }
@@ -679,7 +701,7 @@
         <p class="find-cat">${escapeHtml(p.categoryLabel || p.category || "Find")}</p>
         <h3>${escapeHtml(p.title)}</h3>
         <div class="find-foot">
-          <span class="find-price">${money(p.price)}</span>
+          <span class="find-price">${priceHtml(p.price)}</span>
           <span class="find-actions"><span class="find-view"><i>K</i> View</span></span>
         </div>
       </div>
@@ -869,9 +891,9 @@
         <p class="deal-desc">${escapeHtml(desc)}</p>
         <div class="deal-rating"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.2 18l.9-5.4L4.2 8.7l5.4-.8z"/></svg> ${ratingOf(p)}/10</div>
         <div class="deal-price-row">
-          <span class="deal-price">${money(price)}</span>
-          ${was ? `<span class="deal-was">${money(was)}</span>` : ""}
-          ${save ? `<span class="deal-save">-${money(save)}</span>` : ""}
+          <span class="deal-price">${priceHtml(price)}</span>
+          ${was ? `<span class="deal-was">${priceHtml(was)}</span>` : ""}
+          ${save ? `<span class="deal-save">-${priceHtml(save)}</span>` : ""}
         </div>
         <span class="deal-cta">View deal →</span>
       </div>
@@ -886,7 +908,7 @@
       <div class="shelf-media"><span class="shelf-rating">★ ${ratingOf(p)}/10</span>${img}</div>
       <div class="shelf-body">
         <h4>${escapeHtml(p.title)}</h4>
-        <div class="shelf-meta"><strong>${money(p.price)}</strong><span class="shelf-k">K</span></div>
+        <div class="shelf-meta"><strong>${priceHtml(p.price)}</strong><span class="shelf-k">K</span></div>
       </div>
     </a>`;
   }
@@ -900,7 +922,7 @@
       <div class="similar-media">${img}</div>
       <div class="similar-body">
         <h3>${escapeHtml(shortTitle)}</h3>
-        <strong>${money(p.price)}</strong>
+        <strong>${priceHtml(p.price)}</strong>
       </div>
     </a>`;
   }
@@ -1010,7 +1032,7 @@
           <span>${views.toLocaleString("en-US")} views</span>
         </div>
         <div class="item-price-row">
-          <div class="item-price">${money(p.price)}</div>
+          <div class="item-price">${priceHtml(p.price)}</div>
           <button type="button" class="item-icon-btn" id="item-share" aria-label="Share" title="Copy link">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M10 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4"/></svg>
           </button>
@@ -1834,5 +1856,124 @@
       refreshPwaUi();
     }, 1800);
   }
+
+  /* ---------- Language / currency prefs panel ---------- */
+  function mountPrefs() {
+    const actions = document.querySelector(".header-actions");
+    let chip = $("#prefs-chip") || document.querySelector(".header-actions .chip");
+    if (!chip && actions) {
+      chip = document.createElement("span");
+      chip.className = "chip";
+      chip.id = "prefs-chip";
+      chip.setAttribute("data-prefs", "1");
+      chip.setAttribute("role", "button");
+      chip.tabIndex = 0;
+      const menu = actions.querySelector(".menu-btn");
+      if (menu) actions.insertBefore(chip, menu);
+      else actions.appendChild(chip);
+    }
+    if (!chip) return;
+    let panel = $("#prefs-panel");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "prefs-panel";
+      panel.className = "prefs-panel";
+      panel.hidden = true;
+      document.body.appendChild(panel);
+    }
+
+    function renderPanel() {
+      const curLang = (KakoHub.i18n && KakoHub.i18n.lang) || "en";
+      const curCur = (KakoHub.i18n && KakoHub.i18n.currency) || "USD";
+      const enHref = KakoHub.i18n ? KakoHub.i18n.langHref("en") : "/";
+      const plHref = KakoHub.i18n ? KakoHub.i18n.langHref("pl") : "/pl.html";
+      panel.innerHTML = `
+        <div class="prefs-section">
+          <p class="prefs-label">${t("language")}</p>
+          <div class="prefs-row">
+            <a class="prefs-opt${curLang === "pl" ? " is-on" : ""}" href="${plHref}" hreflang="pl" lang="pl">
+              <span class="prefs-badge">PL</span> ${t("lang_pl")}
+            </a>
+            <a class="prefs-opt${curLang === "en" ? " is-on" : ""}" href="${enHref}" hreflang="en" lang="en">
+              <span class="prefs-badge">EN</span> ${t("lang_en")}
+            </a>
+          </div>
+        </div>
+        <div class="prefs-section">
+          <p class="prefs-label">${t("currency")}</p>
+          <div class="prefs-row">
+            <button type="button" class="prefs-opt${curCur === "PLN" ? " is-on" : ""}" data-currency="PLN">
+              <span class="prefs-badge">zł</span> PLN
+            </button>
+            <button type="button" class="prefs-opt${curCur === "USD" ? " is-on" : ""}" data-currency="USD">
+              <span class="prefs-badge">$</span> USD
+            </button>
+          </div>
+          <p class="prefs-note">${t("fx_note")}</p>
+        </div>`;
+      panel.querySelectorAll("[data-currency]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          KakoHub.i18n?.setCurrency(btn.getAttribute("data-currency"));
+          renderPanel();
+          closePanel();
+        });
+      });
+    }
+
+    function positionPanel() {
+      const r = chip.getBoundingClientRect();
+      panel.style.top = `${Math.round(r.bottom + 8 + window.scrollY)}px`;
+      panel.style.right = `${Math.round(document.documentElement.clientWidth - r.right)}px`;
+      panel.style.left = "auto";
+    }
+
+    function openPanel() {
+      renderPanel();
+      positionPanel();
+      panel.hidden = false;
+      panel.classList.add("is-on");
+      chip.setAttribute("aria-expanded", "true");
+    }
+    function closePanel() {
+      panel.hidden = true;
+      panel.classList.remove("is-on");
+      chip.setAttribute("aria-expanded", "false");
+    }
+    function togglePanel() {
+      if (panel.classList.contains("is-on")) closePanel();
+      else openPanel();
+    }
+
+    if (!chip.dataset.prefsBound) {
+      chip.dataset.prefsBound = "1";
+      chip.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        togglePanel();
+      });
+      chip.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          togglePanel();
+        }
+      });
+      document.addEventListener("click", (e) => {
+        if (!panel.classList.contains("is-on")) return;
+        if (panel.contains(e.target) || chip.contains(e.target)) return;
+        closePanel();
+      });
+      window.addEventListener("resize", () => {
+        if (panel.classList.contains("is-on")) positionPanel();
+      });
+    }
+
+    if (KakoHub.i18n) {
+      KakoHub.i18n.updateChip();
+      KakoHub.i18n.applyStaticI18n();
+      KakoHub.i18n.refreshPrices();
+    }
+  }
+
+  mountPrefs();
   mountPwa();
 })();

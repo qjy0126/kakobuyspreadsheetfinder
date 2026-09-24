@@ -223,6 +223,8 @@ def card_html(p: dict, cat_slug: str) -> str:
     )
     href = f"../item.html?id={escape(pid)}&amp;cat={escape(cat_slug)}"
     label = escape(str(p.get("categoryLabel") or cat_slug))
+    usd = float(p.get("price") or 0)
+    price_attr = f"{usd:g}" if usd else "0"
     return f"""<a class="product-card find-card" href="{href}" data-item="{hay}" data-cat="{escape(cat_slug)}">
       <div class="find-media">
         <span class="find-rating"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.2 18l.9-5.4L4.2 8.7l5.4-.8z"/></svg> {rating_of(p)}/10</span>
@@ -233,7 +235,7 @@ def card_html(p: dict, cat_slug: str) -> str:
         <p class="find-cat">{label}</p>
         <h3>{title}</h3>
         <div class="find-foot">
-          <span class="find-price">{price}</span>
+          <span class="find-price" data-usd="{price_attr}">{price}</span>
           <span class="find-actions"><span class="find-view"><i>K</i> View</span></span>
         </div>
       </div>
@@ -294,6 +296,9 @@ def category_page(slug: str, items: list[dict], all_slugs: list[str], counts: di
   <meta name="keywords" content="{escape(info["kw"])}" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="{url}" />
+  <link rel="alternate" hreflang="en" href="{url}" />
+  <link rel="alternate" hreflang="pl" href="{ORIGIN}/pl/{escape(slug)}/" />
+  <link rel="alternate" hreflang="x-default" href="{url}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Kakobuyspreadsheet" />
   <meta property="og:title" content="{escape(info["title"])}" />
@@ -327,6 +332,7 @@ def category_page(slug: str, items: list[dict], all_slugs: list[str], counts: di
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           <span>Search reps, brands, items…</span>
         </button>
+        <span class="chip" id="prefs-chip" data-prefs="1" role="button" tabindex="0">EN · <strong>USD</strong> · Kakobuy</span>
         <button type="button" class="menu-btn" id="menu-btn" aria-label="Menu"><span></span></button>
       </div>
     </div>

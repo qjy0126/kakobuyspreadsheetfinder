@@ -3,6 +3,9 @@
   window.KakoHub = window.KakoHub || {};
   KakoHub.pwa = KakoHub.pwa || { deferred: null };
 
+  /* Sync-load i18n before body scripts (path absolute) */
+  document.write('<script src="/js/i18n.js"><\/script>');
+
   function ensureHead() {
     if (!document.querySelector('link[rel="manifest"]')) {
       const link = document.createElement("link");

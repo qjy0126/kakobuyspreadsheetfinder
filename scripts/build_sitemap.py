@@ -70,6 +70,10 @@ def main() -> None:
             continue
         loc = f"{ORIGIN}/{slug}/"
         lines.append(url_entry(loc, lastmod, "weekly", "0.85"))
+        lines.append(url_entry(f"{ORIGIN}/pl/{slug}/", lastmod, "weekly", "0.8"))
+
+    # Polish home
+    lines.append(url_entry(f"{ORIGIN}/pl.html", lastmod, "weekly", "0.9"))
 
     seen: set[str] = set()
     for p in products:
