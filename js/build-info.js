@@ -2,5 +2,5 @@ window.KakoHub = window.KakoHub || {};
 /* Auto-stamped on GitHub push by .github/workflows/stamp-updated.yml */
 KakoHub.build = {
   updated: "24 Sep 2026",
-  sha: "7b7057a"
+  sha: "777614c"
 };
