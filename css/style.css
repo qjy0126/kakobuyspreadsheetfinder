@@ -151,8 +151,9 @@ button { cursor: pointer; border: 0; background: none; }
   align-items: center;
   gap: 8px;
   margin-left: auto;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
+  justify-content: flex-end;
 }
 .chip {
   display: inline-flex;
@@ -164,21 +165,30 @@ button { cursor: pointer; border: 0; background: none; }
   background: var(--surface);
   font-size: 12.5px;
   font-weight: 650;
+  line-height: 1.2;
   color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.chip strong { color: var(--ink); }
+.chip strong {
+  color: var(--ink);
+  font-size: inherit;
+  font-weight: 700;
+  line-height: inherit;
+}
 .pwa-header-btn {
   min-height: 40px;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
-  margin-left: 18px;
+  margin-left: auto;
   flex-shrink: 0;
 }
 .pwa-header-btn:hover {
