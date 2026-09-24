@@ -12,60 +12,13 @@
   <meta property="og:url" content="https://kakobuyspreadsheetfinder.com/spreadsheet.html" />
   <script>
   (function () {
-    var ORIGIN = "https://kakobuyspreadsheetfinder.com";
-    var CATS = {
-      shoes: ["Shoes", "sneakers, Jordan, slides"],
-      hoodies: ["Hoodies", "tech fleece, zip-ups"],
-      jackets: ["Jackets", "outerwear, puffers"],
-      "t-shirts": ["T-shirts", "tees, polos"],
-      pants: ["Pants", "shorts, cargos"],
-      bags: ["Bags", "crossbody, backpacks"],
-      accessories: ["Accessories", "belts, wallets"],
-      headwear: ["Headwear", "caps, beanies"],
-      watches: ["Watches", "jewelry finds"],
-      glasses: ["Glasses", "sunglasses"],
-      jersey: ["Jerseys", "sports kits"],
-      underwear: ["Underwear", "socks, basics"],
-      perfume: ["Perfume", "fragrances"],
-      sets: ["Sets", "matching fits"],
-      bricks: ["Bricks", "blocks & toys"],
-      other: ["Other", "misc finds"]
-    };
+    var ALLOW = {shoes:1,hoodies:1,jackets:1,"t-shirts":1,pants:1,bags:1,accessories:1,headwear:1,watches:1,glasses:1,jersey:1,underwear:1,perfume:1,sets:1,bricks:1,other:1};
     var cat = new URLSearchParams(location.search).get("cat");
-    var info = cat && CATS[cat];
-    if (!info) return;
-    var label = info[0];
-    var hints = info[1];
-    var title = "Kakobuy " + label + " Spreadsheet 2026 — Item Finder | Kakobuyspreadsheet";
-    var desc = "Browse Kakobuy " + label.toLowerCase() + " finds with USD prices, QC photos and agent links. Free " + label.toLowerCase() + " spreadsheet — " + hints + ".";
-    var url = ORIGIN + "/spreadsheet.html?cat=" + encodeURIComponent(cat);
-    document.title = title;
-    var md = document.querySelector('meta[name="description"]');
-    if (md) md.setAttribute("content", desc);
-    var can = document.querySelector('link[rel="canonical"]');
-    if (can) can.setAttribute("href", url);
-    var ogt = document.querySelector('meta[property="og:title"]');
-    if (ogt) ogt.setAttribute("content", title);
-    var ogd = document.querySelector('meta[property="og:description"]');
-    if (ogd) ogd.setAttribute("content", desc);
-    var ogu = document.querySelector('meta[property="og:url"]');
-    if (ogu) ogu.setAttribute("content", url);
-    window.__SHEET_CAT_SEO__ = { cat: cat, label: label, title: title, desc: desc, url: url };
-    document.addEventListener("DOMContentLoaded", function () {
-      var h1 = document.getElementById("sheet-h1");
-      var lede = document.getElementById("sheet-lede");
-      if (h1) h1.textContent = "Kakobuy " + label.toLowerCase() + " spreadsheet";
-      if (lede) {
-        lede.textContent =
-          "Kakobuy " +
-          label.toLowerCase() +
-          " finds with USD prices, warehouse QC and direct agent links. Free " +
-          label.toLowerCase() +
-          " spreadsheet — " +
-          hints +
-          ".";
-      }
-    });
+    if (!cat || !ALLOW[cat]) return;
+    var rest = new URLSearchParams(location.search);
+    rest.delete("cat");
+    var qs = rest.toString();
+    location.replace(cat + "/" + (qs ? "?" + qs : ""));
   })();
   </script>
   <link rel="icon" type="image/png" href="img/favicon.png" />

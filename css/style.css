@@ -1809,6 +1809,20 @@ button { cursor: pointer; border: 0; background: none; }
 .page-hero {
   padding: 36px 0 10px;
 }
+.page-hero .crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.page-hero .crumbs a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.page-hero .crumbs a:hover { color: var(--ink); }
 .page-hero h1 {
   font-family: var(--display);
   font-size: clamp(22px, 2.8vw, 34px);

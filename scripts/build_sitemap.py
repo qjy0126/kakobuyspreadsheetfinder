@@ -68,8 +68,8 @@ def main() -> None:
         slug = cat.get("slug")
         if not slug:
             continue
-        loc = f"{ORIGIN}/spreadsheet.html?cat={slug}"
-        lines.append(url_entry(loc, lastmod, "weekly", "0.7"))
+        loc = f"{ORIGIN}/{slug}/"
+        lines.append(url_entry(loc, lastmod, "weekly", "0.85"))
 
     seen: set[str] = set()
     for p in products:

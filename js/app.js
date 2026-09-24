@@ -571,9 +571,26 @@
     return "$" + (Number.isInteger(v) ? v : v.toFixed(2));
   }
 
+  function pathPrefix() {
+    return document.body?.dataset?.page === "category" ? "../" : "";
+  }
+
+  function catHref(slug) {
+    const p = pathPrefix();
+    if (!slug || slug === "all") return `${p}spreadsheet.html`;
+    return `${p}${slug}/`;
+  }
+
+  function assetUrl(path) {
+    if (!path) return "";
+    if (/^(https?:|data:|\/)/i.test(path)) return path;
+    return pathPrefix() + path;
+  }
+
   function productHref(p) {
-    if (!p || !p.id) return "spreadsheet.html";
-    let href = `item.html?id=${encodeURIComponent(p.id)}`;
+    const pre = pathPrefix();
+    if (!p || !p.id) return `${pre}spreadsheet.html`;
+    let href = `${pre}item.html?id=${encodeURIComponent(p.id)}`;
     if (p.category) href += `&cat=${encodeURIComponent(p.category)}`;
     return href;
   }
@@ -608,7 +625,7 @@
     const hay = [p.title, p.brand, p.categoryLabel, ...(p.tags || [])].join(" ").toLowerCase();
     const badge = p.hot ? "Hot" : p.qc ? "QC" : "";
     const media = p.image
-      ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" decoding="async" width="400" height="400" />`
+      ? `<img src="${escapeHtml(assetUrl(p.image))}" alt="" loading="lazy" decoding="async" width="400" height="400" />`
       : escapeHtml(p.categoryLabel || "Find");
     const badgeHtml = badge
       ? `<span class="product-badge">${escapeHtml(badge)}</span>`
@@ -650,7 +667,7 @@
   function sheetCard(p) {
     const hay = [p.title, p.brand, p.categoryLabel, ...(p.tags || [])].join(" ").toLowerCase();
     const img = p.image
-      ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" decoding="async" width="400" height="400" />`
+      ? `<img src="${escapeHtml(assetUrl(p.image))}" alt="" loading="lazy" decoding="async" width="400" height="400" />`
       : "";
     return `<a class="product-card find-card" href="${escapeHtml(productHref(p))}" data-item="${escapeHtml(hay)}" data-cat="${escapeHtml(p.category || "")}">
       <div class="find-media">
@@ -679,9 +696,66 @@
     });
   }
 
+  function initCategoryPage() {
+    const grid = $("#grid");
+    if (!grid || document.body.dataset.page !== "category") return;
+    const cat = document.body.dataset.cat || "";
+    const search = $("#sheet-search");
+    const countEl = $("#sheet-count");
+    const metaEl = $("#sheet-meta");
+    const base = ALL_PRODUCTS.filter((p) => p.category === cat);
+
+    function apply() {
+      const q = (search?.value || "").trim().toLowerCase();
+      let list = base;
+      if (q) {
+        list = base.filter((p) => {
+          const hay = [p.title, p.brand, p.categoryLabel, ...(p.tags || []), p.id]
+            .join(" ")
+            .toLowerCase();
+          return q.split(/\s+/).every((tok) => hay.includes(tok));
+        });
+      }
+      grid.innerHTML = list.length
+        ? list.map(sheetCard).join("")
+        : `<p class="empty">No finds match this search in ${escapeHtml(cat)}.</p>`;
+      if (countEl) {
+        countEl.textContent =
+          list.length === base.length
+            ? `${base.length.toLocaleString("en-US")} finds in ${cat}`
+            : `${list.length.toLocaleString("en-US")} of ${base.length.toLocaleString("en-US")} finds`;
+      }
+      if (metaEl) {
+        metaEl.innerHTML = `<strong>${list.length.toLocaleString("en-US")}</strong> products`;
+      }
+    }
+
+    search?.addEventListener("input", apply);
+    const q0 = new URLSearchParams(location.search).get("q");
+    if (q0 && search) {
+      search.value = q0;
+      apply();
+    }
+  }
+
   function initSpreadsheet() {
+    if (document.body.dataset.page === "category") {
+      initCategoryPage();
+      return;
+    }
+
     const grid = $("#grid");
     if (!grid || !ALL_PRODUCTS.length) return;
+
+    // Old ?cat= URLs → static /shoes/ pages
+    const jump = new URLSearchParams(location.search).get("cat");
+    if (jump) {
+      const rest = new URLSearchParams(location.search);
+      rest.delete("cat");
+      const qs = rest.toString();
+      location.replace(`${jump}/${qs ? `?${qs}` : ""}`);
+      return;
+    }
 
     const strip = $("#cat-strip");
     const search = $("#sheet-search");
@@ -690,38 +764,8 @@
     const updatedEl = $("#sheet-updated");
     const moreWrap = $("#sheet-more");
     const moreBtn = $("#sheet-load-more");
-    const h1El = $("#sheet-h1");
-    const ledeEl = $("#sheet-lede");
-    let cat = "all";
     let shown = 0;
     let filtered = ALL_PRODUCTS.slice();
-
-    const DEFAULT_SEO = {
-      title: "Kakobuy Spreadsheet 2026 — Item Finder & RepFinder | Kakobuyspreadsheet",
-      desc: "Free Kakobuy Spreadsheet 2026 with Item Finder filters. Live finds, weights, QC photos and Kakobuy-ready links — better than a dead Google Sheet.",
-      h1: "Kakobuy Spreadsheet 2026 — Item Finder & RepFinder",
-      lede: "Kakobuyspreadsheet’s free Kakobuy spreadsheet is a live database of curated finds — prices, QC, and agent links. Search like an Item Finder; filter like a RepFinder.",
-      path: "spreadsheet.html",
-    };
-
-    const CAT_HINTS = {
-      shoes: "sneakers, Jordan, slides",
-      hoodies: "tech fleece, zip-ups",
-      jackets: "outerwear, puffers",
-      "t-shirts": "tees, polos",
-      pants: "shorts, cargos",
-      bags: "crossbody, backpacks",
-      accessories: "belts, wallets",
-      headwear: "caps, beanies",
-      watches: "jewelry finds",
-      glasses: "sunglasses",
-      jersey: "sports kits",
-      underwear: "socks, basics",
-      perfume: "fragrances",
-      sets: "matching fits",
-      bricks: "blocks & toys",
-      other: "misc finds",
-    };
 
     if (updatedEl) {
       const label = siteUpdatedLabel() || catalog.updated;
@@ -736,73 +780,19 @@
 
     const cats = [{ slug: "all", label: "All", count: ALL_PRODUCTS.length }].concat(
       (catalog.categories || [])
-        .filter((c) => c.slug !== "other")
         .map((c) => ({ ...c, count: catCounts[c.slug] || 0 }))
+        .filter((c) => c.count > 0)
         .sort((a, b) => b.count - a.count)
     );
-
-    function setMeta(nameOrProp, value, attr) {
-      const sel = attr === "property"
-        ? `meta[property="${nameOrProp}"]`
-        : `meta[name="${nameOrProp}"]`;
-      let el = document.querySelector(sel);
-      if (!el && attr === "property") {
-        el = document.createElement("meta");
-        el.setAttribute("property", nameOrProp);
-        document.head.appendChild(el);
-      } else if (!el) {
-        el = document.createElement("meta");
-        el.setAttribute("name", nameOrProp);
-        document.head.appendChild(el);
-      }
-      el.setAttribute("content", value);
-    }
-
-    function applyCatSeo(syncUrl) {
-      const entry = cats.find((c) => c.slug === cat);
-      const label = entry?.label || cat;
-      const count = entry?.count || filtered.length;
-      let seo;
-      if (cat === "all") {
-        seo = DEFAULT_SEO;
-      } else {
-        const hints = CAT_HINTS[cat] || "verified finds";
-        const path = `spreadsheet.html?cat=${encodeURIComponent(cat)}`;
-        seo = {
-          title: `Kakobuy ${label} Spreadsheet 2026 — Item Finder | Kakobuyspreadsheet`,
-          desc: `Browse ${count.toLocaleString("en-US")} Kakobuy ${label.toLowerCase()} finds with USD prices, QC photos and agent links. Free ${label.toLowerCase()} spreadsheet — ${hints}.`,
-          h1: `Kakobuy ${label.toLowerCase()} spreadsheet — ${count.toLocaleString("en-US")} finds`,
-          lede: `${count.toLocaleString("en-US")} Kakobuy ${label.toLowerCase()} with USD prices, warehouse QC and direct agent links. Filter like a RepFinder; open QC before you buy.`,
-          path,
-        };
-      }
-      document.title = seo.title;
-      setMeta("description", seo.desc);
-      setMeta("og:title", seo.title, "property");
-      setMeta("og:description", seo.desc, "property");
-      setMeta("og:url", `https://kakobuyspreadsheetfinder.com/${seo.path}`, "property");
-      const can = document.querySelector('link[rel="canonical"]');
-      if (can) can.setAttribute("href", `https://kakobuyspreadsheetfinder.com/${seo.path}`);
-      if (h1El) h1El.textContent = seo.h1;
-      if (ledeEl) ledeEl.textContent = seo.lede;
-      if (syncUrl && history.replaceState) {
-        const next = seo.path === "spreadsheet.html" ? "spreadsheet.html" : seo.path;
-        const q = (search?.value || "").trim();
-        let url = next;
-        if (q) {
-          url += (url.includes("?") ? "&" : "?") + `q=${encodeURIComponent(q)}`;
-        }
-        history.replaceState(null, "", url);
-      }
-    }
 
     function renderCats() {
       if (!strip) return;
       strip.innerHTML = cats
         .map((c) => {
           const icon = CAT_ICONS[c.slug] || CAT_ICONS.all;
-          const active = c.slug === cat ? " active" : "";
-          return `<button type="button" class="cat-chip${active}" data-cat="${escapeHtml(c.slug)}">${icon}<span>${escapeHtml(c.label)}</span><span class="cat-count">${Number(c.count).toLocaleString("en-US")}</span></button>`;
+          const active = c.slug === "all" ? " active" : "";
+          const href = catHref(c.slug);
+          return `<a class="cat-chip${active}" href="${escapeHtml(href)}">${icon}<span>${escapeHtml(c.label)}</span><span class="cat-count">${Number(c.count).toLocaleString("en-US")}</span></a>`;
         })
         .join("");
     }
@@ -810,30 +800,15 @@
     function renderMeta() {
       if (!metaEl) return;
       const total = catalog.count || ALL_PRODUCTS.length;
-      const label = cats.find((c) => c.slug === cat)?.label || cat;
-      if (cat === "all" && !(search?.value || "").trim()) {
+      if (!(search?.value || "").trim()) {
         metaEl.innerHTML = `<strong>${filtered.length.toLocaleString("en-US")}</strong> products`;
         return;
       }
       metaEl.innerHTML = `<strong>${filtered.length.toLocaleString("en-US")}</strong> of ${total.toLocaleString("en-US")} products
-        ${cat !== "all" ? `<span class="sheet-filter-tag">${escapeHtml(label)} ×</span>` : ""}
-        <button type="button" class="sheet-clear" id="sheet-clear">Clear filters</button>`;
+        <button type="button" class="sheet-clear" id="sheet-clear">Clear search</button>`;
       $("#sheet-clear")?.addEventListener("click", () => {
-        cat = "all";
         if (search) search.value = "";
-        renderCats();
-        apply(true);
-      });
-    }
-
-    if (strip) {
-      renderCats();
-      strip.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-cat]");
-        if (!btn) return;
-        cat = btn.dataset.cat;
-        renderCats();
-        apply(true);
+        apply();
       });
     }
 
@@ -856,22 +831,19 @@
       renderMeta();
     }
 
-    function apply(syncUrl) {
-      filtered = filterProducts(search?.value || "", cat);
-      applyCatSeo(!!syncUrl);
+    function apply() {
+      filtered = filterProducts(search?.value || "", "all");
       renderPage(true);
     }
 
     moreBtn?.addEventListener("click", () => renderPage(false));
-    search?.addEventListener("input", () => apply(true));
+    search?.addEventListener("input", () => apply());
 
     const params = new URLSearchParams(location.search);
     const q = params.get("q");
-    const c = params.get("cat");
     if (q && search) search.value = q;
-    if (c) cat = c;
     renderCats();
-    apply(false);
+    apply();
   }
   initSpreadsheet();
 
@@ -969,9 +941,7 @@
     const views = Math.max(12, Math.round(Number(p.opens) || 0));
     const catSlug = p.category || params.get("cat") || "";
     const catLabel = p.categoryLabel || catSlug || "Finds";
-    const catHref = catSlug
-      ? `spreadsheet.html?cat=${encodeURIComponent(catSlug)}`
-      : "spreadsheet.html";
+    const catPath = catSlug ? `${catSlug}/` : "spreadsheet.html";
     const pageUrl = `https://kakobuyspreadsheetfinder.com/item.html?id=${encodeURIComponent(String(p.id))}${
       catSlug ? `&cat=${encodeURIComponent(catSlug)}` : ""
     }`;
@@ -995,7 +965,7 @@
     if (crumbs) {
       crumbs.innerHTML = `<a href="spreadsheet.html">Spreadsheet</a>
         <span class="crumb-sep">/</span>
-        <a href="${escapeHtml(catHref)}">${escapeHtml(catLabel)}</a>
+        <a href="${escapeHtml(catPath)}">${escapeHtml(catLabel)}</a>
         <span class="crumb-sep">/</span>
         <span class="crumb-current">${escapeHtml(p.brand || catLabel)}</span>`;
     }
@@ -1028,7 +998,7 @@
       <div class="buy-box">
         <div class="item-badges">
           <span class="item-badge">${escapeHtml(channel)}</span>
-          <a class="item-badge item-badge-cat" href="${escapeHtml(catHref)}">${escapeHtml(catLabel.toUpperCase())}</a>
+          <a class="item-badge item-badge-cat" href="${escapeHtml(catPath)}">${escapeHtml(catLabel.toUpperCase())}</a>
           ${p.qc ? `<span class="item-badge item-badge-qc">QC</span>` : ""}
           ${p.hot ? `<span class="item-badge item-badge-hot">Hot</span>` : ""}
         </div>
@@ -1124,7 +1094,7 @@
       similarSection.hidden = false;
       const similarHead = similarSection.querySelector(".section-head p");
       if (similarHead) {
-        similarHead.innerHTML = `More <a href="${escapeHtml(catHref)}">${escapeHtml(catLabel.toLowerCase())}</a> from the spreadsheet.`;
+        similarHead.innerHTML = `More <a href="${escapeHtml(catPath)}">${escapeHtml(catLabel.toLowerCase())}</a> from the spreadsheet.`;
       }
       rail.innerHTML = similar.map(similarCard).join("");
       const scrollBy = () => Math.min(rail.clientWidth * 0.8, 720);
@@ -1238,7 +1208,7 @@
             "";
           const href = shelf.q
             ? `spreadsheet.html?q=${encodeURIComponent(shelf.q[0])}`
-            : `spreadsheet.html?cat=${encodeURIComponent(shelf.cat)}`;
+            : `${shelf.cat}/`;
           return `<div class="shelf-row" data-shelf="${escapeHtml(shelf.key)}">
             <a class="shelf-banner" href="${escapeHtml(href)}">
               <span class="shelf-aura" aria-hidden="true"></span>
@@ -1485,7 +1455,7 @@
     ).join("");
     const cats = CMD_CATS.map((c) => {
       const icon = CAT_ICONS[c.slug] || CAT_ICONS.all;
-      return `<a class="cmd-cat cmd-item" href="spreadsheet.html?cat=${encodeURIComponent(c.slug)}">${icon}<span>${escapeHtml(c.label)}</span></a>`;
+      return `<a class="cmd-cat cmd-item" href="${escapeHtml(catHref(c.slug))}">${icon}<span>${escapeHtml(c.label)}</span></a>`;
     }).join("");
     const shortcuts = CMD_SHORTCUTS.map(
       (s) =>
