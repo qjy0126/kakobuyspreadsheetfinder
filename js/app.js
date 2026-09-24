@@ -1642,9 +1642,16 @@
 
   function refreshPwaUi() {
     const banner = $("#pwa-banner");
-    const hide =
+    const headerBtn = $("#pwa-header-install");
+    const hideBanner =
       pwaStandalone() || pwaInstalledFlag() || pwaDismissed() || !banner;
-    if (banner) banner.classList.toggle("is-off", !!hide);
+    if (banner) banner.classList.toggle("is-off", !!hideBanner);
+    if (headerBtn) {
+      const hideHeader = pwaStandalone() || pwaInstalledFlag();
+      headerBtn.classList.toggle("is-off", !!hideHeader);
+      if (hideHeader) headerBtn.setAttribute("hidden", "");
+      else headerBtn.removeAttribute("hidden");
+    }
   }
   KakoHub.refreshPwaUi = refreshPwaUi;
 
@@ -1707,10 +1714,14 @@
   async function installPwa() {
     track("pwa_install_click");
     const addBtn = $("#pwa-add");
+    const headerBtn = $("#pwa-header-install");
     const prev = addBtn ? addBtn.textContent : "";
+    const prevH = headerBtn ? headerBtn.textContent : "";
     if (addBtn) addBtn.textContent = "…";
+    if (headerBtn) headerBtn.textContent = "…";
     const dp = await waitForInstallPrompt(pwaChromium() ? 2800 : 400);
     if (addBtn) addBtn.textContent = prev || "Add";
+    if (headerBtn) headerBtn.textContent = prevH || "Add to desktop";
     if (dp && typeof dp.prompt === "function") {
       try {
         dp.prompt();
@@ -1730,6 +1741,22 @@
       }
     }
     showInstallGuide();
+  }
+
+  function ensureHeaderInstallBtn() {
+    let btn = $("#pwa-header-install");
+    if (btn) return btn;
+    const actions = document.querySelector(".header-actions");
+    if (!actions) return null;
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-ghost pwa-header-btn";
+    btn.id = "pwa-header-install";
+    btn.textContent = "Add to desktop";
+    const menu = actions.querySelector(".menu-btn");
+    if (menu) actions.insertBefore(btn, menu);
+    else actions.appendChild(btn);
+    return btn;
   }
 
   function mountPwa() {
@@ -1759,6 +1786,14 @@
       `;
       document.body.appendChild(guide);
     }
+    const headerBtn = ensureHeaderInstallBtn();
+    if (headerBtn && !headerBtn.dataset.bound) {
+      headerBtn.dataset.bound = "1";
+      headerBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        installPwa();
+      });
+    }
     const addBtn = $("#pwa-add");
     if (addBtn && !addBtn.dataset.bound) {
       addBtn.dataset.bound = "1";
@@ -1786,6 +1821,7 @@
         track("pwa_guide_dismiss");
       });
     }
+    refreshPwaUi();
     // Show banner after a short delay on mobile / when installable
     setTimeout(() => {
       if (pwaStandalone() || pwaInstalledFlag() || pwaDismissed()) {
