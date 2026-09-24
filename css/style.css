@@ -178,6 +178,8 @@ button { cursor: pointer; border: 0; background: none; }
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
+  margin-left: 18px;
+  flex-shrink: 0;
 }
 .pwa-header-btn:hover {
   border-color: var(--red);
