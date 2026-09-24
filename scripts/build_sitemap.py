@@ -78,6 +78,9 @@ def main() -> None:
             continue
         seen.add(pid)
         loc = f"{ORIGIN}/item.html?id={pid}"
+        cat = str(p.get("category") or "").strip()
+        if cat:
+            loc += f"&cat={cat}"
         lines.append(url_entry(loc, lastmod, "weekly", "0.5"))
 
     lines.append("</urlset>")

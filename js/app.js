@@ -572,7 +572,23 @@
   }
 
   function productHref(p) {
-    return p && p.id ? `item.html?id=${encodeURIComponent(p.id)}` : "spreadsheet.html";
+    if (!p || !p.id) return "spreadsheet.html";
+    let href = `item.html?id=${encodeURIComponent(p.id)}`;
+    if (p.category) href += `&cat=${encodeURIComponent(p.category)}`;
+    return href;
+  }
+
+  function setMetaTag(nameOrProp, value, attr) {
+    const sel = attr === "property"
+      ? `meta[property="${nameOrProp}"]`
+      : `meta[name="${nameOrProp}"]`;
+    let el = document.querySelector(sel);
+    if (!el) {
+      el = document.createElement("meta");
+      el.setAttribute(attr === "property" ? "property" : "name", nameOrProp);
+      document.head.appendChild(el);
+    }
+    el.setAttribute("content", value);
   }
 
   function kakobuyHref(p) {
@@ -932,6 +948,7 @@
     const id = params.get("id");
     const p = ALL_PRODUCTS.find((x) => String(x.id) === String(id));
     const crumbs = $("#item-crumbs");
+    const promo = $("#item-promo");
 
     if (!p) {
       document.title = "Find not found — Kakobuyspreadsheet";
@@ -950,21 +967,43 @@
     const buyUrl = kakobuyHref(p);
     const rating = ratingOf(p);
     const views = Math.max(12, Math.round(Number(p.opens) || 0));
-    const titleBits = [p.brand, p.categoryLabel].filter(Boolean);
-    const displayTitle = titleBits.length ? titleBits.join(", ") : p.title;
-    document.title = `${p.title} — Kakobuyspreadsheet`;
-    const desc = document.querySelector('meta[name="description"]');
-    if (desc) {
-      desc.setAttribute(
-        "content",
-        `${p.title} · ${money(p.price)} · ${channel}. Open on Kakobuy with QC-ready link.`
-      );
+    const catSlug = p.category || params.get("cat") || "";
+    const catLabel = p.categoryLabel || catSlug || "Finds";
+    const catHref = catSlug
+      ? `spreadsheet.html?cat=${encodeURIComponent(catSlug)}`
+      : "spreadsheet.html";
+    const pageUrl = `https://kakobuyspreadsheetfinder.com/item.html?id=${encodeURIComponent(String(p.id))}${
+      catSlug ? `&cat=${encodeURIComponent(catSlug)}` : ""
+    }`;
+    const seoTitle = `${p.title} | Kakobuy ${catLabel} Spreadsheet`;
+    const seoDesc = `${p.title} · ${money(p.price)} · ${catLabel} find on Kakobuy with QC-ready link. From the Kakobuyspreadsheet ${catLabel.toLowerCase()} spreadsheet.`;
+
+    document.title = seoTitle;
+    setMetaTag("description", seoDesc);
+    setMetaTag("og:title", seoTitle, "property");
+    setMetaTag("og:description", seoDesc, "property");
+    setMetaTag("og:url", pageUrl, "property");
+    setMetaTag("og:type", "product", "property");
+    if (p.image) {
+      setMetaTag("og:image", new URL(p.image, "https://kakobuyspreadsheetfinder.com/").href, "property");
     }
+    const can = document.querySelector('link[rel="canonical"]');
+    if (can) can.setAttribute("href", pageUrl);
+
+    if (promo) promo.textContent = `Kakobuy ${catLabel.toLowerCase()} find`;
 
     if (crumbs) {
-      crumbs.innerHTML = `<a href="spreadsheet.html">← Back to database</a>
+      crumbs.innerHTML = `<a href="spreadsheet.html">Spreadsheet</a>
         <span class="crumb-sep">/</span>
-        <a href="spreadsheet.html?cat=${encodeURIComponent(p.category || "")}">${escapeHtml(p.categoryLabel || p.category || "finds")}</a>`;
+        <a href="${escapeHtml(catHref)}">${escapeHtml(catLabel)}</a>
+        <span class="crumb-sep">/</span>
+        <span class="crumb-current">${escapeHtml(p.brand || catLabel)}</span>`;
+    }
+
+    // Keep shareable URL in sync with category when opened via id-only link
+    if (catSlug && history.replaceState) {
+      const next = `item.html?id=${encodeURIComponent(String(p.id))}&cat=${encodeURIComponent(catSlug)}`;
+      if (location.search.indexOf("cat=") === -1) history.replaceState(null, "", next);
     }
 
     const gallery = gallerySources(p);
@@ -989,12 +1028,12 @@
       <div class="buy-box">
         <div class="item-badges">
           <span class="item-badge">${escapeHtml(channel)}</span>
-          <span class="item-badge item-badge-cat">${escapeHtml((p.categoryLabel || p.category || "Find").toUpperCase())}</span>
+          <a class="item-badge item-badge-cat" href="${escapeHtml(catHref)}">${escapeHtml(catLabel.toUpperCase())}</a>
           ${p.qc ? `<span class="item-badge item-badge-qc">QC</span>` : ""}
           ${p.hot ? `<span class="item-badge item-badge-hot">Hot</span>` : ""}
         </div>
-        <h1>${escapeHtml(displayTitle)}</h1>
-        <p class="item-full-title">${escapeHtml(p.title)}</p>
+        <h1>${escapeHtml(p.title)}</h1>
+        <p class="item-full-title">${escapeHtml([p.brand, catLabel].filter(Boolean).join(" · "))}</p>
         <div class="item-stats">
           <span>${rating}/10 quality</span>
           <span class="item-star">★ 5.0</span>
@@ -1083,6 +1122,10 @@
     const rail = $("#similar-rail");
     if (similarSection && rail && similar.length) {
       similarSection.hidden = false;
+      const similarHead = similarSection.querySelector(".section-head p");
+      if (similarHead) {
+        similarHead.innerHTML = `More <a href="${escapeHtml(catHref)}">${escapeHtml(catLabel.toLowerCase())}</a> from the spreadsheet.`;
+      }
       rail.innerHTML = similar.map(similarCard).join("");
       const scrollBy = () => Math.min(rail.clientWidth * 0.8, 720);
       $("#similar-prev")?.addEventListener("click", () => {
