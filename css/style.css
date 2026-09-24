@@ -2674,10 +2674,6 @@ a.qc-tile:hover {
   opacity: 0.85;
   font-size: 15px;
 }
-.item-qc-link {
-  justify-content: center;
-  min-height: 46px;
-}
 .item-seller {
   margin-top: 16px;
   padding: 14px;

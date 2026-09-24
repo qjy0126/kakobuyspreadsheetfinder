@@ -1025,7 +1025,6 @@
             Buy on Kakobuy
             <span class="item-buy-ext" aria-hidden="true">↗</span>
           </a>
-          <a class="btn btn-soft item-qc-link" href="qc-finder.html">Check QC Finder →</a>
         </div>
         <div class="item-seller">
           <div class="item-seller-main">
