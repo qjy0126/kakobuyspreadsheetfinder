@@ -7,6 +7,67 @@
   <title>Kakobuy Spreadsheet 2026 — Item Finder &amp; RepFinder | Kakobuyspreadsheet</title>
   <meta name="description" content="Free Kakobuy Spreadsheet 2026 with Item Finder filters. Live finds, weights, QC photos and Kakobuy-ready links — better than a dead Google Sheet." />
   <link rel="canonical" href="https://kakobuyspreadsheetfinder.com/spreadsheet.html" />
+  <meta property="og:title" content="Kakobuy Spreadsheet 2026 — Item Finder &amp; RepFinder | Kakobuyspreadsheet" />
+  <meta property="og:description" content="Free Kakobuy Spreadsheet 2026 with Item Finder filters. Live finds, weights, QC photos and Kakobuy-ready links — better than a dead Google Sheet." />
+  <meta property="og:url" content="https://kakobuyspreadsheetfinder.com/spreadsheet.html" />
+  <script>
+  (function () {
+    var ORIGIN = "https://kakobuyspreadsheetfinder.com";
+    var CATS = {
+      shoes: ["Shoes", "sneakers, Jordan, slides"],
+      hoodies: ["Hoodies", "tech fleece, zip-ups"],
+      jackets: ["Jackets", "outerwear, puffers"],
+      "t-shirts": ["T-shirts", "tees, polos"],
+      pants: ["Pants", "shorts, cargos"],
+      bags: ["Bags", "crossbody, backpacks"],
+      accessories: ["Accessories", "belts, wallets"],
+      headwear: ["Headwear", "caps, beanies"],
+      watches: ["Watches", "jewelry finds"],
+      glasses: ["Glasses", "sunglasses"],
+      jersey: ["Jerseys", "sports kits"],
+      underwear: ["Underwear", "socks, basics"],
+      perfume: ["Perfume", "fragrances"],
+      sets: ["Sets", "matching fits"],
+      bricks: ["Bricks", "blocks & toys"],
+      other: ["Other", "misc finds"]
+    };
+    var cat = new URLSearchParams(location.search).get("cat");
+    var info = cat && CATS[cat];
+    if (!info) return;
+    var label = info[0];
+    var hints = info[1];
+    var title = "Kakobuy " + label + " Spreadsheet 2026 — Item Finder | Kakobuyspreadsheet";
+    var desc = "Browse Kakobuy " + label.toLowerCase() + " finds with USD prices, QC photos and agent links. Free " + label.toLowerCase() + " spreadsheet — " + hints + ".";
+    var url = ORIGIN + "/spreadsheet.html?cat=" + encodeURIComponent(cat);
+    document.title = title;
+    var md = document.querySelector('meta[name="description"]');
+    if (md) md.setAttribute("content", desc);
+    var can = document.querySelector('link[rel="canonical"]');
+    if (can) can.setAttribute("href", url);
+    var ogt = document.querySelector('meta[property="og:title"]');
+    if (ogt) ogt.setAttribute("content", title);
+    var ogd = document.querySelector('meta[property="og:description"]');
+    if (ogd) ogd.setAttribute("content", desc);
+    var ogu = document.querySelector('meta[property="og:url"]');
+    if (ogu) ogu.setAttribute("content", url);
+    window.__SHEET_CAT_SEO__ = { cat: cat, label: label, title: title, desc: desc, url: url };
+    document.addEventListener("DOMContentLoaded", function () {
+      var h1 = document.getElementById("sheet-h1");
+      var lede = document.getElementById("sheet-lede");
+      if (h1) h1.textContent = "Kakobuy " + label.toLowerCase() + " spreadsheet";
+      if (lede) {
+        lede.textContent =
+          "Kakobuy " +
+          label.toLowerCase() +
+          " finds with USD prices, warehouse QC and direct agent links. Free " +
+          label.toLowerCase() +
+          " spreadsheet — " +
+          hints +
+          ".";
+      }
+    });
+  })();
+  </script>
   <link rel="icon" type="image/png" href="img/favicon.png" />
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png" sizes="180x180" />
   <link rel="manifest" href="/manifest.json" />
@@ -50,8 +111,8 @@
     <section class="page-hero">
       <div class="wrap">
         <div class="updated"><i></i> Updated: <span id="sheet-updated" data-site-updated>23 Sep 2026</span></div>
-        <h1>Kakobuy Spreadsheet 2026 — Item Finder &amp; RepFinder</h1>
-        <p class="lede">Kakobuyspreadsheet’s free Kakobuy spreadsheet is a live database of curated finds — prices, QC, and agent links. Search like an Item Finder; filter like a RepFinder.</p>
+        <h1 id="sheet-h1">Kakobuy Spreadsheet 2026 — Item Finder &amp; RepFinder</h1>
+        <p class="lede" id="sheet-lede">Kakobuyspreadsheet’s free Kakobuy spreadsheet is a live database of curated finds — prices, QC, and agent links. Search like an Item Finder; filter like a RepFinder.</p>
         <div class="finder-shell">
           <label class="field-label" for="sheet-search">Search the spreadsheet</label>
           <input class="field" id="sheet-search" type="search" placeholder="Jordan 4, hoodie, TNF, bag…" />

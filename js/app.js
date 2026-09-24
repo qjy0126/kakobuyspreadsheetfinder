@@ -674,9 +674,38 @@
     const updatedEl = $("#sheet-updated");
     const moreWrap = $("#sheet-more");
     const moreBtn = $("#sheet-load-more");
+    const h1El = $("#sheet-h1");
+    const ledeEl = $("#sheet-lede");
     let cat = "all";
     let shown = 0;
     let filtered = ALL_PRODUCTS.slice();
+
+    const DEFAULT_SEO = {
+      title: "Kakobuy Spreadsheet 2026 — Item Finder & RepFinder | Kakobuyspreadsheet",
+      desc: "Free Kakobuy Spreadsheet 2026 with Item Finder filters. Live finds, weights, QC photos and Kakobuy-ready links — better than a dead Google Sheet.",
+      h1: "Kakobuy Spreadsheet 2026 — Item Finder & RepFinder",
+      lede: "Kakobuyspreadsheet’s free Kakobuy spreadsheet is a live database of curated finds — prices, QC, and agent links. Search like an Item Finder; filter like a RepFinder.",
+      path: "spreadsheet.html",
+    };
+
+    const CAT_HINTS = {
+      shoes: "sneakers, Jordan, slides",
+      hoodies: "tech fleece, zip-ups",
+      jackets: "outerwear, puffers",
+      "t-shirts": "tees, polos",
+      pants: "shorts, cargos",
+      bags: "crossbody, backpacks",
+      accessories: "belts, wallets",
+      headwear: "caps, beanies",
+      watches: "jewelry finds",
+      glasses: "sunglasses",
+      jersey: "sports kits",
+      underwear: "socks, basics",
+      perfume: "fragrances",
+      sets: "matching fits",
+      bricks: "blocks & toys",
+      other: "misc finds",
+    };
 
     if (updatedEl) {
       const label = siteUpdatedLabel() || catalog.updated;
@@ -695,6 +724,61 @@
         .map((c) => ({ ...c, count: catCounts[c.slug] || 0 }))
         .sort((a, b) => b.count - a.count)
     );
+
+    function setMeta(nameOrProp, value, attr) {
+      const sel = attr === "property"
+        ? `meta[property="${nameOrProp}"]`
+        : `meta[name="${nameOrProp}"]`;
+      let el = document.querySelector(sel);
+      if (!el && attr === "property") {
+        el = document.createElement("meta");
+        el.setAttribute("property", nameOrProp);
+        document.head.appendChild(el);
+      } else if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("name", nameOrProp);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", value);
+    }
+
+    function applyCatSeo(syncUrl) {
+      const entry = cats.find((c) => c.slug === cat);
+      const label = entry?.label || cat;
+      const count = entry?.count || filtered.length;
+      let seo;
+      if (cat === "all") {
+        seo = DEFAULT_SEO;
+      } else {
+        const hints = CAT_HINTS[cat] || "verified finds";
+        const path = `spreadsheet.html?cat=${encodeURIComponent(cat)}`;
+        seo = {
+          title: `Kakobuy ${label} Spreadsheet 2026 — Item Finder | Kakobuyspreadsheet`,
+          desc: `Browse ${count.toLocaleString("en-US")} Kakobuy ${label.toLowerCase()} finds with USD prices, QC photos and agent links. Free ${label.toLowerCase()} spreadsheet — ${hints}.`,
+          h1: `Kakobuy ${label.toLowerCase()} spreadsheet — ${count.toLocaleString("en-US")} finds`,
+          lede: `${count.toLocaleString("en-US")} Kakobuy ${label.toLowerCase()} with USD prices, warehouse QC and direct agent links. Filter like a RepFinder; open QC before you buy.`,
+          path,
+        };
+      }
+      document.title = seo.title;
+      setMeta("description", seo.desc);
+      setMeta("og:title", seo.title, "property");
+      setMeta("og:description", seo.desc, "property");
+      setMeta("og:url", `https://kakobuyspreadsheetfinder.com/${seo.path}`, "property");
+      const can = document.querySelector('link[rel="canonical"]');
+      if (can) can.setAttribute("href", `https://kakobuyspreadsheetfinder.com/${seo.path}`);
+      if (h1El) h1El.textContent = seo.h1;
+      if (ledeEl) ledeEl.textContent = seo.lede;
+      if (syncUrl && history.replaceState) {
+        const next = seo.path === "spreadsheet.html" ? "spreadsheet.html" : seo.path;
+        const q = (search?.value || "").trim();
+        let url = next;
+        if (q) {
+          url += (url.includes("?") ? "&" : "?") + `q=${encodeURIComponent(q)}`;
+        }
+        history.replaceState(null, "", url);
+      }
+    }
 
     function renderCats() {
       if (!strip) return;
@@ -722,7 +806,7 @@
         cat = "all";
         if (search) search.value = "";
         renderCats();
-        apply();
+        apply(true);
       });
     }
 
@@ -733,7 +817,7 @@
         if (!btn) return;
         cat = btn.dataset.cat;
         renderCats();
-        apply();
+        apply(true);
       });
     }
 
@@ -756,13 +840,14 @@
       renderMeta();
     }
 
-    function apply() {
+    function apply(syncUrl) {
       filtered = filterProducts(search?.value || "", cat);
+      applyCatSeo(!!syncUrl);
       renderPage(true);
     }
 
     moreBtn?.addEventListener("click", () => renderPage(false));
-    search?.addEventListener("input", () => apply());
+    search?.addEventListener("input", () => apply(true));
 
     const params = new URLSearchParams(location.search);
     const q = params.get("q");
@@ -770,7 +855,7 @@
     if (q && search) search.value = q;
     if (c) cat = c;
     renderCats();
-    apply();
+    apply(false);
   }
   initSpreadsheet();
 
